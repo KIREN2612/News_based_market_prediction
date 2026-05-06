@@ -5,6 +5,7 @@ DB_PATH = "sentiment.db"
 
 def get_connection():
     sqliteConnection = sqlite3.connect(DB_PATH)
+    sqliteConnection.row_factory = sqlite3.Row
     return sqliteConnection
 
 def create_table():
@@ -54,5 +55,5 @@ def get_latest_by_ticker(ticker: str):
     
     rows = cursor.fetchall()
     conn.close()
-    return rows
+    return [dict(row) for row in rows]
 

@@ -23,6 +23,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+#--------Helper Aggreggator function------------------
+from collections import Counter
+
+def aggregate_sentiment(ticker:str,rows:list):
+    scores = [row["weighted_score"]for row in rows]
+    labels = [row["sentiment"]for row in rows]
+    
+    conviction = sum(scores)/len(scores)
+    
+    signal = Counter(labels).most_common(1)[0][0]
+    
+    freshness = rows[0]["fetched_at"]
+    
+    return{
+        "ticker":ticker,
+        "signal":signal,
+        "conviction": round(conviction,2),
+        "based_on" : len(rows),
+        "freshness" : freshness
+    }
+
 class main(BaseModel):
     ticker :  str
     price  :  float
@@ -42,7 +63,7 @@ def ticker_details(ticker:str):
     if not rows:
         return{"ticker":ticker,"message":'No data yet-scheduler has not run yet'}   
     
-    result = {"ticker":ticker,"rows":rows}
-    set_cache(ticker,result)
+    result = aggregate_sentiment(ticker, rows)
+    set_cache(ticker, result)
     
     return{"source":"database","data":result}
