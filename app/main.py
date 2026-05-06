@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_table()
+    run_pipeline()
     print("Database setup successfully")
     
     scheduler = BackgroundScheduler()
@@ -31,7 +32,7 @@ app.mount("/static", StaticFiles(directory="frontend"), name="static")
 def serve_dashboard():
     return FileResponse("frontend/index.html")
 
-#--------Helper Aggreggator function------------------
+#--------Helper Aggregator function------------------
 from collections import Counter
 
 def aggregate_sentiment(ticker:str,rows:list):
