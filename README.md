@@ -1,3 +1,12 @@
+---
+title: NSE Finance Sentiment Signal
+emoji: 📈
+colorFrom: green
+colorTo: blue
+sdk: docker
+pinned: true
+---
+
 # 📊 Finance News Sentiment System
 
 > Real-time conviction signal layer for Indian retail investors — built targeting [StockGro/Stoxo](https://www.stockgro.club/)'s core pain point: users drowning in unverified financial news with no clear signal to act on.
