@@ -11,22 +11,63 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 tickers = ["INFY", "RELIANCE", "HDFC", "TCS", "WIPRO"]
 
+import feedparser
+
+RSS_FEEDS = {
+    "INFY": [
+        "https://economictimes.indiatimes.com/markets/stocks/rss.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+    ],
+    "RELIANCE": [
+        "https://economictimes.indiatimes.com/markets/stocks/rss.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+    ],
+    "HDFC": [
+        "https://economictimes.indiatimes.com/markets/stocks/rss.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+    ],
+    "TCS": [
+        "https://economictimes.indiatimes.com/markets/stocks/rss.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+    ],
+    "WIPRO": [
+        "https://economictimes.indiatimes.com/markets/stocks/rss.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+    ],
+}
+
 def fetch_headlines(ticker: str):
-    url = "https://newsapi.org/v2/everything"
-    params = {
-        "q": ticker,
-        "language": "en",
-        "pageSize": 10,
-        "apiKey": NEWS_API_KEY
-    }
-    response = requests.get(url, params=params)
-    data = response.json()
-    
-    if data.get("status") != "ok":
-        print(f"NewsAPI error for {ticker}: {data.get('message', 'unknown error')}")
-        return []
-    
-    return data.get("articles", [])
+    articles = []
+    feeds = RSS_FEEDS.get(ticker, [])
+
+    for feed_url in feeds:
+        try:
+            feed = feedparser.parse(feed_url)
+            for entry in feed.entries:
+                title = entry.get("title", "")
+                source = feed.feed.get("title", "Unknown")
+
+                # only keep headlines that mention the ticker or company name
+                keywords = {
+                    "INFY": ["infosys", "infy"],
+                    "RELIANCE": ["reliance", "ril"],
+                    "HDFC": ["hdfc"],
+                    "TCS": ["tcs", "tata consultancy"],
+                    "WIPRO": ["wipro"],
+                }
+                terms = keywords.get(ticker, [ticker.lower()])
+
+                if any(term in title.lower() for term in terms):
+                    articles.append({
+                        "title": title,
+                        "source": {"name": source}
+                    })
+        except Exception as e:
+            print(f"RSS fetch error for {ticker}: {e}")
+            continue
+
+    print(f"{ticker} — {len(articles)} relevant headlines found")
+    return articles[:10]
 
 SOURCE_CREDIBILITY = {
     "Moneycontrol": 0.9,
