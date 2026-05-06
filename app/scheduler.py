@@ -11,17 +11,22 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 tickers = ["INFY", "RELIANCE", "HDFC", "TCS", "WIPRO"]
 
-def fetch_headlines(ticker:str):
+def fetch_headlines(ticker: str):
     url = "https://newsapi.org/v2/everything"
     params = {
-        "q":ticker,
-        "language":"en",
-        "pageSize" : 10,
-        "apiKey" : NEWS_API_KEY
+        "q": ticker,
+        "language": "en",
+        "pageSize": 10,
+        "apiKey": NEWS_API_KEY
     }
-    response = requests.get(url,params=params)
+    response = requests.get(url, params=params)
     data = response.json()
-    return data["articles"]
+    
+    if data.get("status") != "ok":
+        print(f"NewsAPI error for {ticker}: {data.get('message', 'unknown error')}")
+        return []
+    
+    return data.get("articles", [])
 
 SOURCE_CREDIBILITY = {
     "Moneycontrol": 0.9,
