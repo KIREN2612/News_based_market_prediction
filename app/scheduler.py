@@ -36,37 +36,40 @@ RSS_FEEDS = {
     ],
 }
 
+RSS_FEEDS = [
+    "https://www.moneycontrol.com/rss/latestnews.xml",
+    "https://livemint.com/rss/markets",
+    "https://www.thehindu.com/business/markets/feeder/default.rss",
+]
+
+KEYWORDS = {
+    "INFY": ["infosys", "infy"],
+    "RELIANCE": ["reliance", "ril"],
+    "HDFC": ["hdfc"],
+    "TCS": ["tcs", "tata consultancy"],
+    "WIPRO": ["wipro"],
+}
+
 def fetch_headlines(ticker: str):
     articles = []
-    feeds = RSS_FEEDS.get(ticker, [])
+    terms = KEYWORDS.get(ticker, [ticker.lower()])
 
-    for feed_url in feeds:
+    for feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
             for entry in feed.entries:
                 title = entry.get("title", "")
                 source = feed.feed.get("title", "Unknown")
-
-                # only keep headlines that mention the ticker or company name
-                keywords = {
-                    "INFY": ["infosys", "infy"],
-                    "RELIANCE": ["reliance", "ril"],
-                    "HDFC": ["hdfc"],
-                    "TCS": ["tcs", "tata consultancy"],
-                    "WIPRO": ["wipro"],
-                }
-                terms = keywords.get(ticker, [ticker.lower()])
-
                 if any(term in title.lower() for term in terms):
                     articles.append({
                         "title": title,
                         "source": {"name": source}
                     })
         except Exception as e:
-            print(f"RSS fetch error for {ticker}: {e}")
+            print(f"RSS error {feed_url}: {e}")
             continue
 
-    print(f"{ticker} — {len(articles)} relevant headlines found")
+    print(f"{ticker} — {len(articles)} headlines found")
     return articles[:10]
 
 SOURCE_CREDIBILITY = {
