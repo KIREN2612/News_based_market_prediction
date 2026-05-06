@@ -5,6 +5,8 @@ from app.cache import set_cache,get_cache
 from contextlib import asynccontextmanager
 from app.scheduler import run_pipeline
 from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +24,12 @@ async def lifespan(app: FastAPI):
     print("Scheduler shutdown")
 
 app = FastAPI(lifespan=lifespan)
+
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+@app.get("/")
+def serve_dashboard():
+    return FileResponse("frontend/index.html")
 
 #--------Helper Aggreggator function------------------
 from collections import Counter
@@ -51,6 +59,23 @@ class main(BaseModel):
 @app.get("/health")
 def health_check():
     return{"Status 200" : "OK"}
+
+@app.get("/tickers")
+def get_all_tickers():
+    results = []
+    for ticker in ["INFY", "RELIANCE", "HDFC", "TCS", "WIPRO"]:
+        cached = get_cache(ticker)
+        if cached:
+            results.append({"source":"cached","data":cached}) 
+            continue
+        rows = get_latest_by_ticker(ticker)
+        if rows:
+            result = aggregate_sentiment(ticker,rows)
+            set_cache(ticker,result)
+            results.append({"source":"database","data":result})
+        else:
+            results.append({"ticker":ticker,"message":"No data yet"})
+    return results
 
 @app.get("/sentiment/{ticker}")
 def ticker_details(ticker:str):

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — NSE Sentiment Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Instrument+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06060a;
+  --surface:#0d0d14;
+  --card:#10101a;
+  --border:#1a1a2e;
+  --text:#f0f0f8;
+  --muted:#4a4a6a;
+  --dim:#2a2a3e;
+  --bull:#00e676;
+  --bear:#ff3d57;
+  --neut:#7c83ff;
+  --bull-glow:rgba(0,230,118,0.12);
+  --bear-glow:rgba(255,61,87,0.12);
+  --neut-glow:rgba(124,131,255,0.12);
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Instrument Sans',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,230,118,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,131,255,0.04) 0%, transparent 60%);
+  pointer-events:none;
+  z-index:0;
+}
+.app{max-width:1000px;margin:0 auto;padding:40px 24px;position:relative;z-index:1}
+
+/* HEADER */
+.header{margin-bottom:48px}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;gap:6px}
+.brand-tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.25em;color:var(--muted);text-transform:uppercase}
+.brand-name{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:800;letter-spacing:-0.03em;line-height:1;color:var(--text)}
+.brand-name em{font-style:normal;color:var(--bull)}
+.brand-sub{font-size:13px;color:var(--muted);font-weight:300;margin-top:4px;letter-spacing:0.01em}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.live-pill{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:var(--bull);border:1px solid rgba(0,230,118,0.25);padding:5px 10px;border-radius:3px;background:rgba(0,230,118,0.05)}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--bull);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
+.refresh-info{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.05em}
+
+/* MARKET BAR */
+.market-bar{display:flex;gap:8px;margin-bottom:40px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow-x:auto}
+.market-item{display:flex;flex-direction:column;gap:3px;min-width:110px;padding:0 16px;border-right:1px solid var(--border)}
+.market-item:first-child{padding-left:0}
+.market-item:last-child{border-right:none}
+.market-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase}
+.market-value{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:var(--text)}
+.market-change{font-family:'JetBrains Mono',monospace;font-size:10px}
+.up{color:var(--bull)}.down{color:var(--bear)}
+
+/* SECTION LABEL */
+.section-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:40px}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:22px;cursor:pointer;transition:border-color 0.2s,transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden;opacity:0;transform:translateY(12px);animation:cardIn 0.4s ease forwards}
+.card:hover{transform:translateY(-2px)}
+@keyframes cardIn{to{opacity:1;transform:translateY(0)}}
+.card.bull{border-color:rgba(0,230,118,0.2);box-shadow:0 0 30px rgba(0,230,118,0.04)}
+.card.bear{border-color:rgba(255,61,87,0.2);box-shadow:0 0 30px rgba(255,61,87,0.04)}
+.card.neut{border-color:rgba(124,131,255,0.2);box-shadow:0 0 30px rgba(124,131,255,0.04)}
+.card:hover.bull{box-shadow:0 4px 40px rgba(0,230,118,0.1)}
+.card:hover.bear{box-shadow:0 4px 40px rgba(255,61,87,0.1)}
+.card:hover.neut{box-shadow:0 4px 40px rgba(124,131,255,0.1)}
+.card-glow{position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;filter:blur(40px);pointer-events:none;opacity:0.5}
+.bull .card-glow{background:var(--bull-glow)}
+.bear .card-glow{background:var(--bear-glow)}
+.neut .card-glow{background:var(--neut-glow)}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.ticker-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.02em;color:var(--text)}
+.ticker-full{font-size:11px;color:var(--muted);margin-top:2px;font-weight:300}
+.signal-badge{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase}
+.bull .signal-badge{background:rgba(0,230,118,0.1);color:var(--bull);border:1px solid rgba(0,230,118,0.2)}
+.bear .signal-badge{background:rgba(255,61,87,0.1);color:var(--bear);border:1px solid rgba(255,61,87,0.2)}
+.neut .signal-badge{background:rgba(124,131,255,0.1);color:var(--neut);border:1px solid rgba(124,131,255,0.2)}
+
+/* CONVICTION BAR */
+.conviction-section{margin-bottom:18px}
+.conviction-label{display:flex;justify-content:space-between;margin-bottom:7px}
+.conviction-text{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.conviction-value{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500}
+.bull .conviction-value{color:var(--bull)}
+.bear .conviction-value{color:var(--bear)}
+.neut .conviction-value{color:var(--neut)}
+.bar-track{height:4px;background:var(--dim);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
+.bull .bar-fill{background:linear-gradient(90deg,rgba(0,230,118,0.4),var(--bull))}
+.bear .bar-fill{background:linear-gradient(90deg,rgba(255,61,87,0.4),var(--bear))}
+.neut .bar-fill{background:linear-gradient(90deg,rgba(124,131,255,0.4),var(--neut))}
+
+/* CARD FOOTER */
+.card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--border)}
+.meta-item{display:flex;flex-direction:column;gap:2px}
+.meta-label{font-size:9px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
+.meta-value{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);font-weight:500}
+.action-hint{margin-top:12px;padding:10px 12px;border-radius:6px;font-size:12px;font-weight:400;letter-spacing:0.01em;line-height:1.4}
+.bull .action-hint{background:rgba(0,230,118,0.06);color:rgba(0,230,118,0.8)}
+.bear .action-hint{background:rgba(255,61,87,0.06);color:rgba(255,61,87,0.8)}
+.neut .action-hint{background:rgba(124,131,255,0.06);color:rgba(124,131,255,0.8)}
+
+/* DETAIL PANEL */
+.detail-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;margin-bottom:40px;display:none}
+.detail-panel.open{display:block;animation:cardIn 0.3s ease forwards}
+.detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.detail-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.02em}
+.close-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em}
+.close-btn:hover{border-color:var(--dim);color:var(--text)}
+.detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.stat-box{padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px}
+.stat-label{font-size:9px;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:var(--text)}
+.what-to-do{padding:16px 18px;border-radius:8px;border-left:3px solid}
+.what-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px;opacity:0.6}
+.what-text{font-size:13px;line-height:1.6;font-weight:300}
+
+/* FOOTER */
+.footer{text-align:center;padding-top:32px;border-top:1px solid var(--border)}
+.footer-text{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.footer-text a{color:var(--neut);text-decoration:none}
+.footer-text a:hover{color:var(--text)}
+
+/* LOADING / ERROR */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:16px}
+.loading-ring{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--bull);animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:0.1em}
+.error-box{padding:24px;text-align:center;background:rgba(255,61,87,0.05);border:1px solid rgba(255,61,87,0.2);border-radius:8px;color:var(--bear);font-family:'JetBrains Mono',monospace;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-tag">NSE · Real-time Intelligence</div>
+        <div class="brand-name">Signal<em>.</em></div>
+        <div class="brand-sub">Credibility-weighted sentiment for Indian retail investors</div>
+      </div>
+      <div class="header-right">
+        <div class="live-pill"><div class="pulse"></div>LIVE</div>
+        <div class="refresh-info" id="refresh-info">Refreshing every 60s</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="market-bar">
+    <div class="market-item">
+      <div class="market-label">NIFTY 50</div>
+      <div class="market-value">24,346</div>
+      <div class="market-change up">▲ 0.42%</div>
+    </div>
+    <div class="market-item">
+      <div class="market-label">SENSEX</div>
+      <div class="market-value">80,218</div>
+      <div class="market-change up">▲ 0.38%</div>
+    </div>
+    <div class="market-item">
+      <div class="market-label">BANK NIFTY</div>
+      <div class="market-value">52,104</div>
+      <div class="market-change down">▼ 0.11%</div>
+    </div>
+    <div class="market-item">
+      <div class="market-label">VIX</div>
+      <div class="market-value">13.42</div>
+      <div class="market-change down">▼ 2.1%</div>
+    </div>
+    <div class="market-item">
+      <div class="market-label">INR/USD</div>
+      <div class="market-value">83.72</div>
+      <div class="market-change up">▲ 0.05%</div>
+    </div>
+  </div>
+
+  <div class="section-label">Conviction Signals</div>
+  <div id="detail-panel" class="detail-panel"></div>
+  <div id="grid" class="grid">
+    <div class="loading">
+      <div class="loading-ring"></div>
+      <div class="loading-text">FETCHING SIGNALS...</div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-text">
+      Built by <a href="https://kirenportfolio.netlify.app" target="_blank">Kiren S</a> &nbsp;·&nbsp;
+      Powered by FinBERT &nbsp;·&nbsp;
+      <a href="/docs" target="_blank">API Docs</a> &nbsp;·&nbsp;
+      <a href="https://github.com/KIREN2612/finbert-sentiment" target="_blank">GitHub</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+const TICKER_NAMES = {
+  INFY:'Infosys Ltd',
+  RELIANCE:'Reliance Industries',
+  HDFC:'HDFC Bank',
+  TCS:'Tata Consultancy',
+  WIPRO:'Wipro Ltd'
+};
+
+const ACTIONS = {
+  bullish:{
+    high:"📈 Strong buy signal — multiple credible sources aligned. Signal is fresh. Consider entry if price hasn't moved yet.",
+    med:"📊 Moderate bullish signal — some positive momentum detected. Verify with price action before entering.",
+    low:"⚠️ Weak bullish signal — low source credibility or mixed headlines. Wait for stronger confirmation."
+  },
+  bearish:{
+    high:"📉 Strong caution signal — multiple credible sources negative. Consider reducing exposure or waiting.",
+    med:"📊 Moderate bearish pressure — some negative momentum. Avoid fresh entries until signal clears.",
+    low:"⚠️ Weak bearish signal — may be noise. Hold positions but watch for escalation."
+  },
+  neutral:{
+    high:"⏸️ Market is undecided on this stock. No strong edge either way — stay on the sidelines.",
+    med:"⏸️ Mixed signals detected. No clear conviction — best to wait for a directional move.",
+    low:"⏸️ Insufficient signal strength. Not enough credible coverage to form a view."
+  }
+};
+
+function getActionText(signal,conviction){
+  const tier = conviction>=0.6?'high':conviction>=0.4?'med':'low';
+  return ACTIONS[signal]?.[tier]||ACTIONS.neutral.low;
+}
+function getClass(signal){
+  if(signal==='bullish')return 'bull';
+  if(signal==='bearish')return 'bear';
+  return 'neut';
+}
+function getColor(signal){
+  if(signal==='bullish')return 'var(--bull)';
+  if(signal==='bearish')return 'var(--bear)';
+  return 'var(--neut)';
+}
+function getIcon(signal){
+  if(signal==='bullish')return '↑';
+  if(signal==='bearish')return '↓';
+  return '→';
+}
+function timeSince(dateStr){
+  const mins=Math.floor((new Date()-new Date(dateStr))/60000);
+  if(mins<1)return 'just now';
+  if(mins<60)return `${mins}m ago`;
+  return `${Math.floor(mins/60)}h ago`;
+}
+
+function buildCard(item,index){
+  if(!item.data)return '';
+  const d=item.data;
+  const cls=getClass(d.signal);
+  const pct=Math.round(d.conviction*100);
+  const name=TICKER_NAMES[d.ticker]||d.ticker;
+  return `
+    <div class="card ${cls}" style="animation-delay:${index*0.08}s" onclick="showDetail('${d.ticker}')">
+      <div class="card-glow"></div>
+      <div class="card-header">
+        <div>
+          <div class="ticker-name">${d.ticker}</div>
+          <div class="ticker-full">${name}</div>
+        </div>
+        <div class="signal-badge">${getIcon(d.signal)} ${d.signal.toUpperCase()}</div>
+      </div>
+      <div class="conviction-section">
+        <div class="conviction-label">
+          <span class="conviction-text">Conviction Score</span>
+          <span class="conviction-value">${pct}%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="card-footer">
+        <div class="meta-item">
+          <div class="meta-label">Sources</div>
+          <div class="meta-value">${d.based_on} articles</div>
+        </div>
+        <div class="meta-item" style="text-align:right">
+          <div class="meta-label">Signal Age</div>
+          <div class="meta-value">${timeSince(d.freshness)}</div>
+        </div>
+      </div>
+      <div class="action-hint">${getActionText(d.signal,d.conviction)}</div>
+    </div>`;
+}
+
+let allData=[];
+
+function showDetail(ticker){
+  const item=allData.find(i=>i.data&&i.data.ticker===ticker);
+  if(!item)return;
+  const d=item.data;
+  const pct=Math.round(d.conviction*100);
+  const panel=document.getElementById('detail-panel');
+  const bg=d.signal==='bullish'?'rgba(0,230,118,0.05)':d.signal==='bearish'?'rgba(255,61,87,0.05)':'rgba(124,131,255,0.05)';
+  panel.innerHTML=`
+    <div class="detail-header">
+      <div class="detail-title" style="color:${getColor(d.signal)}">${d.ticker} — ${d.signal.toUpperCase()}</div>
+      <button class="close-btn" onclick="closeDetail()">✕ CLOSE</button>
+    </div>
+    <div class="detail-stats">
+      <div class="stat-box">
+        <div class="stat-label">Conviction</div>
+        <div class="stat-val" style="color:${getColor(d.signal)}">${pct}%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Articles Analyzed</div>
+        <div class="stat-val">${d.based_on}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Signal Age</div>
+        <div class="stat-val">${timeSince(d.freshness)}</div>
+      </div>
+    </div>
+    <div class="what-to-do" style="border-color:${getColor(d.signal)};background:${bg}">
+      <div class="what-label" style="color:${getColor(d.signal)}">What this means for you</div>
+      <div class="what-text" style="color:var(--text)">${getActionText(d.signal,d.conviction)}</div>
+    </div>`;
+  panel.classList.add('open');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closeDetail(){
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+async function fetchData(){
+  const grid=document.getElementById('grid');
+  try{
+    const res=await fetch('/tickers');
+    if(!res.ok)throw new Error();
+    allData=await res.json();
+    grid.innerHTML=allData.map((item,i)=>buildCard(item,i)).join('');
+    document.getElementById('refresh-info').textContent=`Updated ${new Date().toLocaleTimeString('en-IN')}`;
+  }catch(e){
+    grid.innerHTML=`<div class="error-box">⚠ Could not reach API — is the FastAPI server running?<br><small style="opacity:0.6;margin-top:6px;display:block">Expected at /tickers</small></div>`;
+  }
+}
+
+fetchData();
+setInterval(fetchData,60000);
+</script>
+</body>
+</html>
