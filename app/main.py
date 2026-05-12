@@ -7,6 +7,7 @@ from app.scheduler import run_pipeline
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from app.agent import run_agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,3 +94,8 @@ def ticker_details(ticker:str):
     set_cache(ticker, result)
     
     return{"source":"database","data":result}
+
+@app.post("/ask")
+async def ask(question:str):
+    result = run_agent(question)
+    return result
