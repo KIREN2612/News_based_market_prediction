@@ -8,6 +8,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.agent import run_agent
+import asyncio
+import httpx
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +21,22 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(run_pipeline,"interval",minutes=3)
     scheduler.start()
     print("Scheduler started")
+    
+    async def keep_alive():
+        await asyncio.sleep(60)
+        while True:
+            try:
+               async with httpx.AsyncClient() as client:
+                await client.get(
+                    "https://sanjikiren-signal-news-based-market-predictor.hf.space/health",
+                    timeout=10
+                )
+                print("Keep-alive ping sent")
+            except:
+                pass
+            await asyncio.sleep(600)
+
+    asyncio.create_task(keep_alive())
     
     yield
     
